@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ADMIN CINE FINAL</title>
+<style>body{background:#000;color:#fff;font-family:Arial;padding:16px}input,button,select,textarea{padding:14px;border-radius:12px;border:none;width:100%;margin:6px 0;font-weight:700}button{cursor:pointer}.card{background:#111;padding:14px;border-radius:14px;margin:10px 0;border:1px solid #222}.tabs{display:flex;gap:8px;margin:12px 0}.tab{padding:10px 14px;border-radius:20px;background:#222;color:#888;cursor:pointer}.tab.ativo{background:#ff0000;color:#fff}.ok{color:#0f8;font-size:12px}.codeBox{background:#0a0a0a;border:1px solid #333;padding:10px;border-radius:10px;color:#0f0;font-size:11px;word-break:break-all;margin-top:8px}</style>
+</head><body>
+<div id="login"><h2>🔐 ADMIN CINE GRATIFLIX</h2><input id="senha" type="password" placeholder="Senha"><button onclick="logar()" style="background:#ff0000;color:#fff">ENTRAR</button></div>
+<div id="painel" style="display:none">
+<div class="tabs"><div id="tabFilme" class="tab ativo" onclick="aba('filme')">🎬 FILMES</div><div id="tabCodigo" class="tab" onclick="aba('codigo')">🎟️ CÓDIGOS</div><div id="tabPedidos" class="tab" onclick="aba('pedidos')">📋 PEDIDOS</div></div>
+
+<div id="aba-filme">
+<h3>➕ Adicionar Filme</h3>
+<input id="f_titulo" placeholder="Nome ex: Tempos Modernos" oninput="gerarPreview()">
+<input id="f_ano" placeholder="Ano ex: 1936" type="number" oninput="gerarPreview()">
+<select id="f_tag" onchange="gerarPreview()"><option>DOMÍNIO PÚBLICO</option><option>CREATIVE COMMONS</option><option>LANÇAMENTO</option></select>
+<input id="f_capa" placeholder="Link da capa (Google Imagens > copiar link)" oninput="gerarPreview()">
+<textarea id="f_video" placeholder="Link do vídeo: YouTube ou archive.org/details/..." rows="3" oninput="gerarPreview()"></textarea>
+<input id="f_desc" placeholder="Descrição curta" oninput="gerarPreview()">
+
+<div id="previewLink" style="display:none;background:#111;padding:12px;border-radius:12px;border:1px solid #222;margin-top:10px">
+<b style="color:#ffcc00">🔗 LINK CODIFICADO GERADO AUTOMÁTICO:</b>
+<div id="linkEmbed" class="codeBox"></div>
+<small class="ok" id="statusLink"></small>
+<div style="display:flex;gap:8px;margin-top:8px">
+<button onclick="copiarEmbed()" style="background:#00ff88;color:#000;flex:1">📋 COPIAR LINK EMBED</button>
+<button onclick="testarLink()" style="background:#222;color:#fff;flex:1">▶ TESTAR</button>
+</div>
+
+<b style="color:#ffcc00;display:block;margin-top:12px">📦 BLOCO JSON PRONTO PRA filmes.json / index.html:</b>
+<div id="jsonPronto" class="codeBox"></div>
+<button onclick="copiarJson()" style="background:#ffcc00;color:#000;margin-top:8px">📋 COPIAR BLOCO JSON</button>
+</div>
+
+<button onclick="addFilme()" style="background:#ffcc00;color:#000;margin-top:14px">💾 SALVAR FILME NO APP</button>
+<div id="listaFilmes" style="margin-top:20px"></div>
+<button onclick="exportarJSON()" style="background:#333;color:#aaa;margin-top:20px">📤 EXPORTAR TODOS filmes.json</button>
+<textarea id="jsonOut" style="display:none;margin-top:10px;background:#111;color:#0f0;font-size:11px" rows="8"></textarea>
+</div>
+
+<div id="aba-codigo" style="display:none">
+<h3>⚡ Gerador de Códigos</h3>
+<input id="idCliente" placeholder="ID CINE-123456"><input id="nomeCliente" placeholder="Nome">
+<button onclick="gerarCodigoManual()" style="background:#ffcc00;color:#000">GERAR CÓDIGO CINE</button>
+<div id="codigoNovo" style="font-size:22px;color:#00ff88;text-align:center;margin-top:10px"></div>
+<button id="btnCopiar" onclick="navigator.clipboard.writeText(ultimoCodigo);alert('Copiado')" style="display:none;background:#00ff88;color:#000">📋 COPIAR CÓDIGO</button>
+</div>
+<div id="aba-pedidos" style="display:none"><h3>📋 Pedidos</h3><div id="listaPedidos"></div></div>
+</div>
+
+<script>
+const SENHA="cine2024";let ultimoCodigo="";let linkFinal="";
+function logar(){if(document.getElementById('senha').value===SENHA){document.getElementById('login').style.display='none';document.getElementById('painel').style.display='block';carregarFilmes();carregarPedidos()}else alert('errada')}
+function aba(t){document.getElementById('aba-filme').style.display=t==='filme'?'block':'none';document.getElementById('aba-codigo').style.display=t==='codigo'?'block':'none';document.getElementById('aba-pedidos').style.display=t==='pedidos'?'block':'none';document.querySelectorAll('.tab').forEach(x=>x.classList.remove('ativo'));document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('ativo')}
+
+function converterLink(url){
+ if(!url) return "";
+ url=url.trim();
+ if(url.includes("youtube.com/watch?v=")){
+  let id=url.split("v=")[1].split("&")[0];
+  return `https://www.youtube.com/embed/${id}`;
+ }
+ if(url.includes("youtu.be/")){
+  let id=url.split("youtu.be/")[1].split("?")[0];
+  return `https://www.youtube.com/embed/${id}`;
+ }
+ if(url.includes("archive.org/details/")){
+  let id=url.split("details/")[1].split("/")[0].split("?")[0];
+  return `https://archive.org/embed/${id}`;
+ }
+ if(url.includes("archive.org/embed/")) return url;
+ return url;
+}
+
+function gerarPreview(){
+ let titulo=document.getElementById('f_titulo').value;
+ let ano=document.getElementById('f_ano').value;
+ let tag=document.getElementById('f_tag').value;
+ let capa=document.getElementById('f_capa').value;
+ let videoRaw=document.getElementById('f_video').value;
+ let desc=document.getElementById('f_desc').value;
+
+ if(!videoRaw){document.getElementById('previewLink').style.display='none';return;}
+
+ linkFinal=converterLink(videoRaw);
+ document.getElementById('previewLink').style.display='block';
+ document.getElementById('linkEmbed').innerText=linkFinal;
+ document.getElementById('statusLink').innerText=linkFinal.includes("embed")?"✅ Link codificado com sucesso! Pronto pra inserir no index.html":"⚠️ Link original mantido";
+
+ let obj={
+  t:titulo||"Nome do Filme",
+  ano:ano||"2024",
+  tag:tag,
+  img:capa||"https://images.unsplash.com/photo-1485846234645-a62644f84728",
+  video:linkFinal,
+  desc:desc||""
+ };
+ document.getElementById('jsonPronto').innerText=JSON.stringify(obj,null,2);
+}
+
+function copiarEmbed(){navigator.clipboard.writeText(linkFinal);alert("✅ Link embed copiado:\n"+linkFinal)}
+function copiarJson(){let j=document.getElementById('jsonPronto').innerText;navigator.clipboard.writeText(j);alert("✅ Bloco JSON copiado! Cole no filmes.json")}
+function testarLink(){if(linkFinal) window.open(linkFinal,'_blank')}
+
+function addFilme(){
+ let f={t:document.getElementById('f_titulo').value,ano:document.getElementById('f_ano').value,tag:document.getElementById('f_tag').value,img:document.getElementById('f_capa').value||'https://images.unsplash.com/photo-1485846234645-a62644f84728',video:linkFinal||converterLink(document.getElementById('f_video').value),desc:document.getElementById('f_desc').value,id:Date.now()};
+ if(!f.t||!f.video){alert('Preencha nome e vídeo');return}
+ let filmes=JSON.parse(localStorage.getItem('cine_filmes')||'[]');filmes.push(f);localStorage.setItem('cine_filmes',JSON.stringify(filmes));alert('✅ Filme '+f.t+' salvo! Link já codificado: '+f.video);carregarFilmes();
+}
+function carregarFilmes(){let filmes=JSON.parse(localStorage.getItem('cine_filmes')||'[]');let html=`<h4>${filmes.length} filmes no celular</h4>`;filmes.slice().reverse().forEach(f=>{html+=`<div class="card"><img src="${f.img}" style="width:100%;height:100px;object-fit:cover;border-radius:10px"><br><b>${f.t} (${f.ano})</b><br><small style="color:#0f0;word-break:break-all">${f.video}</small><br><button onclick="removerFilme(${f.id})" style="background:#300;color:#f55;padding:8px;margin-top:6px">🗑️ REMOVER</button> <button onclick="navigator.clipboard.writeText('${f.video}');alert('Link copiado')" style="background:#222;color:#fff;padding:8px">📋 COPIAR LINK</button></div>`});document.getElementById('listaFilmes').innerHTML=html}
+function removerFilme(id){let f=JSON.parse(localStorage.getItem('cine_filmes')||'[]').filter(x=>x.id!==id);localStorage.setItem('cine_filmes',JSON.stringify(f));carregarFilmes()}
+function exportarJSON(){let f=localStorage.getItem('cine_filmes')||'[]';document.getElementById('jsonOut').style.display='block';document.getElementById('jsonOut').value=f;}
+
+function gerarCodigoManual(){
+ let id=document.getElementById('idCliente').value.trim().toUpperCase()||'CINE-'+Date.now().toString().slice(-6);let codigo=`CINE-${Math.random().toString(36).substring(2,6).toUpperCase()}-${Math.random().toString(36).substring(2,6).toUpperCase()}`;ultimoCodigo=codigo;
+ let libs=JSON.parse(localStorage.getItem('cine_liberados')||'{}');libs[id]=codigo;localStorage.setItem('cine_liberados',JSON.stringify(libs));
+ document.getElementById('codigoNovo').innerHTML=`ID: ${id}<br><b style="font-size:28px">${codigo}</b>`;document.getElementById('btnCopiar').style.display='block';carregarPedidos();
+}
+function carregarPedidos(){let p=JSON.parse(localStorage.getItem('cine_pedidos')||'[]');let h='';p.slice().reverse().forEach(x=>{h+=`<div class="card"><b>${x.nome} - ${x.id}</b><br><small>${x.data}</small><br><button onclick="document.getElementById('idCliente').value='${x.id}';aba('codigo');gerarCodigoManual()" style="background:#0f8;color:#000">LIBERAR</button></div>`});document.getElementById('listaPedidos').innerHTML=h||'<p style="color:#666">Nenhum pedido</p>'}
+</script>
+</body></html>
